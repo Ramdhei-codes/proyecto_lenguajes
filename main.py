@@ -1,23 +1,12 @@
-gramatica = {
-    "E": ["E + T", "T"],
-    "T": ["T * F", "F"],
-    "F": ["id", "( E )"]
-}
+import json
+from tabulate import tabulate
 
-gramatica1 = [
-    {"E": ["E + T", "T"]},
-    {"T": ["T * F", "F"]},
-    {"F": ["id", "( E )"]}
-]
+gramatica_json = open("gramatica.json")
 
-gramatica2 = [
-    {"S": ["S xx", "A B C D"]},
-    {"A": ["p", "&", "B D", "A p B"]},
-    {"B": ["q C H", "q B H", "&"]},
-    {"H": ["xyxx"]},
-    {"D": ["d", "&"]},
-    {"C": ["idd S fx", "id"]}
-]
+gramatica2_json = open("gramatica2.json")
+
+gramatica_1 = json.load(gramatica_json)
+gramatica_2 = json.load(gramatica2_json)
 
 def eliminar_recursion(gramatica):
     for prod in gramatica:
@@ -121,6 +110,86 @@ def siguientes(gramatica:list):
             
     return lista_siguientes
 
+def conjunto_prediccion(gramatica, imprimir_tabla=0):
+    lista_primeros = primeros(gramatica)
+    lista_siguientes = siguientes(gramatica)
+
+    lista_t = lista_terminales(gramatica)
+
+    conjunto_pred = []
+    valores_tabla_conjunto_pred = []
+
+    for produccion in gramatica:
+        conjunto_prediccion_prod_actual = []
+        lista_tabla_prod_actual = [list(produccion.keys())[0]]
+
+        for key, value in produccion.items():
+
+            for i in range(len(lista_t)):
+                lista_tabla_prod_actual.append(" ")
+
+            for derivado in value:
+
+                arr_value = derivado.split(" ")
+
+                if arr_value[0] == "&":
+                    siguientes_esta_prod = buscar_produccion(key, lista_siguientes)
+                    conjunto_prediccion_prod_actual.extend(siguientes_esta_prod)
+                    llenar_fila_tabla(lista_tabla_prod_actual, siguientes_esta_prod, derivado, lista_t)
+                elif arr_value[0].islower() or not arr_value[0].isalnum():
+                    conjunto_prediccion_prod_actual.append(arr_value[0])
+                    llenar_fila_tabla(lista_tabla_prod_actual, [arr_value[0]], derivado, lista_t)
+                else:
+                    primeros_esta_prod = buscar_produccion(arr_value[0], lista_primeros)
+                    conjunto_prediccion_prod_actual.extend(primeros_esta_prod)
+                    llenar_fila_tabla(lista_tabla_prod_actual, primeros_esta_prod, derivado, lista_t)
+        valores_tabla_conjunto_pred.append(lista_tabla_prod_actual)
+        conjunto_pred.append({key: conjunto_prediccion_prod_actual})
+
+    if imprimir_tabla == 1:
+        tabla_analisis_sintactico(lista_t, valores_tabla_conjunto_pred)
+    return conjunto_pred
+
+def tabla_analisis_sintactico(encabezados, valores):
+    encabezados.insert(0, "NT/VT")
+    print(tabulate(valores, headers=encabezados, tablefmt="pretty"))
+
+
+def llenar_fila_tabla(lista_tabla_prod, terminales_a_anadir, valor, lista_terminales):
+    
+    for terminal in lista_terminales:
+        for t in terminales_a_anadir:
+            if t == terminal:
+                lista_tabla_prod[lista_terminales.index(terminal)+1] = valor
+
+    
+
+
+def esLL1(conjunto_prediccion):
+    for produccion in conjunto_prediccion:
+        for key, value in produccion.items():
+            prod_sin_repetidos = set(value)
+
+            repetidos_ll1 = len(value) != len(prod_sin_repetidos)
+
+            if repetidos_ll1:
+                break
+        
+        if repetidos_ll1:
+            break
+
+    if repetidos_ll1:
+        print("--"*30)
+        print("NO ES UNA GRAMÁTICA LL1")
+        print("--"*30)
+    else:
+        print("--"*30)
+        print("ES UNA GRAMÁTICA LL1")
+        print("--"*30)
+
+
+
+
 def lista_no_terminales(gramatica):
     lista_nt = []
     for produccion in gramatica:
@@ -128,6 +197,18 @@ def lista_no_terminales(gramatica):
             lista_nt.append(key)
 
     return lista_nt
+
+def lista_terminales(gramatica):
+    lista_t = ["$"]
+    for produccion in gramatica:
+        for key, value in produccion.items():
+            for derivado in value:
+                arr_derivado = derivado.split(" ")
+                for el in arr_derivado:
+                    if (el.islower() or not el.isalnum()) and el != "&":
+                        lista_t.append(el)
+
+    return lista_t
 
             
 
@@ -138,21 +219,13 @@ def buscar_produccion(nombre_produccion, gramatica):
             for value in list(prod.values())[0]:
                 elementos_produccion.append(value)
     return elementos_produccion
-            
 
 
+if __name__ == "__main__":
+    eliminar_recursion(gramatica_1)
+    imprimir_gramatica(gramatica_1)
+    primeros(gramatica_1)
+    sig_gram = siguientes(gramatica_1)
+    esLL1(conjunto_prediccion(gramatica_1))
 
-def main():
-    eliminar_recursion(gramatica2)
-    # imprimir_gramatica(gramatica1)
-    print("-"*50)
-    primeros(gramatica2)
-    print("-"*50)
-
-    sig_gram = siguientes(gramatica2)
-    imprimir_gramatica(sig_gram)
-    # print(lista_no_terminales(gramatica1))
-    
-
-main()
-
+    conjunto_prediccion(gramatica_1,1)
